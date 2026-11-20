@@ -1,0 +1,6 @@
+[project]
+name = "lomap-toy-experiment"
+version = "0.1.0"
+description = "CPU experiment for the LoMAP projection mechanism"
+requires-python = ">=3.13,<3.14"
+dependencies = ["numpy>=2.2,<3", "matplotlib>=3.10,<4"]

@@ -1,0 +1,62 @@
+{
+  "main_sigma": 0.003,
+  "waypoints": 41,
+  "bank_size": 128,
+  "neighbors": 10,
+  "variance_threshold": 0.99,
+  "obstacle_radius": 0.35,
+  "runs": [
+    {
+      "seed": 20261120,
+      "sigma": 0.0,
+      "trials": 256,
+      "collisions_before": 112,
+      "collisions_after": 32,
+      "resolved_collisions": 80,
+      "new_collisions": 0,
+      "mean_rmse_before": 0.17034164656485004,
+      "mean_rmse_after": 0.13382781729125054,
+      "rmse_improved_trials": 256,
+      "median_pca_rank": 1.0
+    },
+    {
+      "seed": 20261120,
+      "sigma": 0.003,
+      "trials": 256,
+      "collisions_before": 110,
+      "collisions_after": 46,
+      "resolved_collisions": 64,
+      "new_collisions": 0,
+      "mean_rmse_before": 0.17039186739983458,
+      "mean_rmse_after": 0.13611847124094723,
+      "rmse_improved_trials": 256,
+      "median_pca_rank": 5.0
+    },
+    {
+      "seed": 20261120,
+      "sigma": 0.03,
+      "trials": 256,
+      "collisions_before": 118,
+      "collisions_after": 47,
+      "resolved_collisions": 71,
+      "new_collisions": 0,
+      "mean_rmse_before": 0.1755422174253781,
+      "mean_rmse_after": 0.13498949767302446,
+      "rmse_improved_trials": 256,
+      "median_pca_rank": 9.0
+    },
+    {
+      "seed": 20261120,
+      "sigma": 0.1,
+      "trials": 256,
+      "collisions_before": 169,
+      "collisions_after": 33,
+      "resolved_collisions": 136,
+      "new_collisions": 0,
+      "mean_rmse_before": 0.2208808799041576,
+      "mean_rmse_after": 0.1383650670108842,
+      "rmse_improved_trials": 256,
+      "median_pca_rank": 9.0
+    }
+  ]
+}
