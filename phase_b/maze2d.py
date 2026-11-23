@@ -13,10 +13,12 @@ from prepare_assets import ROOT
 ENVIRONMENTS = {
     "umaze": {"goal": (1, 1), "horizon": 128, "diffusion_steps": 128, "projection": (0.3, 0.8)},
     "medium": {"goal": (6, 6), "horizon": 256, "diffusion_steps": 256, "projection": (0.3, 0.4)},
+    "large": {"goal": (7, 9), "horizon": 256, "diffusion_steps": 256, "projection": (0.5, 0.8)},
 }
 DATA_SHA256 = {
     "umaze": "f2d327d95067d53e274ac2fe876b740ed7883d0a9738bd5b447635cdb786bfb7",
     "medium": "b33981665984ee1a1667a2c2109638e8dd6b9767f39611cb9c16f8ec4fc32ab5",
+    "large": "a80dddbd0158abc6cd85ec3ec88fc3099c288f3141e9bf92bb2c1c11f1876d12",
 }
 
 

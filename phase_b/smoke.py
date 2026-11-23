@@ -75,6 +75,14 @@ class PairedDiffuser(DiscreteDiffusionSDEEX):
             self.projection_rng.set_state(torch.cuda.get_rng_state(device))
         return samples
 
+    def compute_rg(self, xt, *args, **kwargs):
+        device = xt.device
+        with torch.random.fork_rng(devices=[device.index]):
+            torch.cuda.set_rng_state(self.gap_rng.get_state(), device)
+            gap = super().compute_rg(xt, *args, **kwargs)
+            self.gap_rng.set_state(torch.cuda.get_rng_state(device))
+        return gap
+
 
 def make_diffuser(maze):
     settings = ENVIRONMENTS[maze]
@@ -107,7 +115,7 @@ def verify_environment():
         "upstream_revision": REVISION,
         "datasets": {},
     }
-    datasets = {name: MazeWindows(name) for name in ENVIRONMENTS}
+    datasets = {name: MazeWindows(name) for name in ("umaze", "medium")}
     for name, dataset in datasets.items():
         maze = PointMaze(name)
         before = maze.data.qpos.copy()

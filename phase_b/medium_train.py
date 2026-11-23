@@ -1,11 +1,13 @@
-"""Train the Medium Diffuser and save recoverable optimizer and RNG state."""
+"""Train a Maze2D Diffuser and save recoverable optimizer and RNG state."""
 
 import argparse
 import csv
 import json
 import math
+import signal
 import sys
 import time
+from itertools import islice
 from pathlib import Path
 
 import mujoco
@@ -38,14 +40,17 @@ def save_progress(path, agent, scheduler, configuration, step, seconds):
     temporary.replace(path)
 
 
-def train(output, steps, batch_size, seed, save_every):
-    dataset = MazeWindows("medium")
+def train(output, steps, batch_size, seed, save_every, *, maze="medium", stop_requested=lambda: False):
+    dataset = MazeWindows(maze)
+    steps_per_epoch = len(dataset) // batch_size
+    if steps_per_epoch < 1:
+        raise ValueError("Batch size exceeds the number of training windows")
     configuration = {
         "steps": steps,
         "batch_size": batch_size,
         "seed": seed,
         "dataset": dataset.describe(),
-        "model": ENVIRONMENTS["medium"] | {"ema": 0.9999, "scheduler": "cosine"},
+        "model": ENVIRONMENTS[maze] | {"ema": 0.9999, "scheduler": "cosine"},
         "upstream_revision": REVISION,
         "python": sys.version.split()[0],
         "torch": str(torch.__version__),
@@ -55,10 +60,9 @@ def train(output, steps, batch_size, seed, save_every):
     }
     # Keep the serialized configuration identical to the one in the checkpoint.
     configuration = json.loads(json.dumps(configuration))
-    write_json(output / "training_config.json", configuration)
     torch.manual_seed(seed)
     torch.set_num_threads(4)
-    agent = make_diffuser("medium")
+    agent = make_diffuser(maze)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(agent.optimizer, steps)
     agent.train()
     progress = output / "training_state.pt"
@@ -79,7 +83,7 @@ def train(output, steps, batch_size, seed, save_every):
     rows = []
     if timing.exists():
         with timing.open(newline="", encoding="utf-8") as handle:
-            rows = [row for row in csv.DictReader(handle) if int(row["step"]) <= finished]
+            rows = list(islice(csv.DictReader(handle), finished))
     if len(rows) != finished or any(int(row["step"]) != i for i, row in enumerate(rows, 1)):
         raise RuntimeError("Training log does not agree with the resume checkpoint")
     fieldnames = ["step", "seconds", "loss", "learning_rate"]
@@ -89,8 +93,8 @@ def train(output, steps, batch_size, seed, save_every):
         writer.writeheader()
         writer.writerows(rows)
     temporary_timing.replace(timing)
+    write_json(output / "training_config.json", configuration)
 
-    steps_per_epoch = len(dataset) // batch_size
     indices = None
     torch.cuda.synchronize()
     torch.cuda.reset_peak_memory_stats()
@@ -117,11 +121,15 @@ def train(output, steps, batch_size, seed, save_every):
             if step % 250 == 0 or step == steps:
                 handle.flush()
                 recent = rows[-250:]
-                print(f"Medium {step}/{steps}: mean loss={np.mean([float(r['loss']) for r in recent]):.5f}, "
+                print(f"{maze.capitalize()} {step}/{steps}: mean loss={np.mean([float(r['loss']) for r in recent]):.5f}, "
                       f"step={1000 * np.mean([float(r['seconds']) for r in recent]):.2f} ms")
-            if step % save_every == 0 or step == steps:
+            stopping = stop_requested()
+            if stopping or step % save_every == 0 or step == steps:
                 handle.flush()
                 save_progress(progress, agent, scheduler, configuration, step, elapsed + time.perf_counter() - begin)
+            if stopping and step < steps:
+                print(f"Paused after saving step {step}/{steps}", flush=True)
+                return 75
 
     elapsed += time.perf_counter() - begin
     checkpoint = output / "diffusion.pt"
@@ -144,10 +152,12 @@ def train(output, steps, batch_size, seed, save_every):
         "checkpoint_sha256": sha256(checkpoint),
         "resumed_from_step": finished,
     })
+    return 0
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--maze", choices=ENVIRONMENTS, default="medium")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--steps", type=int, default=50000)
     parser.add_argument("--batch-size", type=int, default=64)
@@ -157,9 +167,18 @@ def main():
     if min(args.steps, args.batch_size, args.save_every) < 1 or args.seed < 0:
         parser.error("steps, batch size and checkpoint interval must be positive, and seed nonnegative")
     args.output.mkdir(parents=True, exist_ok=True)
-    prepare_assets()
-    train(args.output, args.steps, args.batch_size, args.seed, args.save_every)
+    stopping = False
+
+    def request_stop(_signal, _frame):
+        nonlocal stopping
+        stopping = True
+
+    signal.signal(signal.SIGTERM, request_stop)
+    signal.signal(signal.SIGINT, request_stop)
+    prepare_assets((args.maze,))
+    return train(args.output, args.steps, args.batch_size, args.seed, args.save_every,
+                 maze=args.maze, stop_requested=lambda: stopping)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
